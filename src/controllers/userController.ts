@@ -1,5 +1,13 @@
 import { Request, Response } from 'express';
-import { User, UserRole } from '../models/User';
+import { IUser } from '../models/User';
+import User from '../models/User';
+
+// Define UserRole enum here or import from a separate file if already defined
+export enum UserRole {
+  ADMIN = 'admin',
+  MANAGER = 'manager',
+  USER = 'user'
+}
 
 // Get all users (Admin only)
 export const getUsers = async (req: Request, res: Response) => {

@@ -1,5 +1,4 @@
 import Task from '../models/Task';
-import { User } from '../models/User';
 import nodemailer from 'nodemailer';
 import cron from 'node-cron';
 import { sendReminderEmail } from './emailService';
@@ -30,8 +29,8 @@ export const checkAndSendReminders = async () => {
     }).populate('assignedTo');
 
     for (const task of tasks) {
-      const user = task.assignedTo as any;
-      if (user && user.email) {
+      const user = task.assignedTo as { email?: string } | null | undefined;
+      if (user && typeof user.email === 'string') {
         // Send email reminder
         await transporter.sendMail({
           from: process.env.SMTP_USER,
@@ -41,7 +40,7 @@ export const checkAndSendReminders = async () => {
             <h2>Task Reminder</h2>
             <p>Your task "${task.title}" is due soon.</p>
             <p><strong>Description:</strong> ${task.description}</p>
-            <p><strong>Due Date:</strong> ${task.dueDate.toLocaleString()}</p>
+            <p><strong>Due Date:</strong> ${task.dueDate instanceof Date ? task.dueDate.toLocaleString() : ''}</p>
             <p><strong>Priority:</strong> ${task.priority}</p>
             <p>Please log in to the system to update the task status.</p>
           `
@@ -77,9 +76,10 @@ export const startReminderService = () => {
       // Send reminders for each task
       for (const task of tasks) {
         try {
-          if (task.assignedTo && task.assignedTo.email) {
+          const user = task.assignedTo as { email?: string } | null | undefined;
+          if (user && typeof user.email === 'string') {
             await sendReminderEmail(
-              task.assignedTo.email,
+              user.email,
               task.title,
               task.dueDate
             );

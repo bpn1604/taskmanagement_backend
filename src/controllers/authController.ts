@@ -1,6 +1,10 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { User, UserRole } from '../models/User';
+import { IUser } from '../models/User';
+import UserRole from '../models/User';
+// Import the User model/class from the correct location or with the correct name
+import User from '../models/User';
+import bcrypt from 'bcrypt';
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -11,21 +15,26 @@ export const register = async (req: Request, res: Response) => {
     if (existingUser) {
       return res.status(400).json({ message: 'User already exists' });
     }
+    // Hash password before saving
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create new user
     const user = new User({
       email,
-      password,
+      password: hashedPassword,
       name,
-      role: role || UserRole.USER
+      role: role || 'user' // Default to 'user' role if not provided
     });
-
     await user.save();
+    // Ensure JWT_SECRET is defined
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).json({ message: 'JWT secret is not defined' });
+    }
 
     // Generate JWT token
     const token = jwt.sign(
       { userId: user._id, role: user.role },
-      process.env.JWT_SECRET!,
+      process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
@@ -49,17 +58,15 @@ export const login = async (req: Request, res: Response) => {
     const { email, password } = req.body;
 
     // Find user
+    // Find user
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
-
-    // Check password
     const isValidPassword = await user.comparePassword(password);
     if (!isValidPassword) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
-
     // Generate JWT token
     const token = jwt.sign(
       { userId: user._id, role: user.role },
